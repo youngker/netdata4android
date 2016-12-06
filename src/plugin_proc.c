@@ -6,11 +6,13 @@ void *proc_main(void *ptr)
 
     info("PROC Plugin thread created with task id %d", gettid());
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     // disable (by default) various interface that are not needed
     config_get_boolean("plugin:proc:/proc/net/dev:lo", "enabled", 0);
@@ -35,7 +37,9 @@ void *proc_main(void *ptr)
     int vdo_proc_softirqs           = !config_get_boolean("plugin:proc", "/proc/softirqs", 1);
     int vdo_proc_net_softnet_stat   = !config_get_boolean("plugin:proc", "/proc/net/softnet_stat", 1);
     int vdo_proc_loadavg            = !config_get_boolean("plugin:proc", "/proc/loadavg", 1);
+#ifndef NETDATA_ANDROID
     int vdo_ipc                     = !config_get_boolean("plugin:proc", "ipc", 1);
+#endif
     int vdo_sys_kernel_mm_ksm       = !config_get_boolean("plugin:proc", "/sys/kernel/mm/ksm", 1);
     int vdo_cpu_netdata             = !config_get_boolean("plugin:proc", "netdata server resources", 1);
 
@@ -92,6 +96,7 @@ void *proc_main(void *ptr)
         }
         if(unlikely(netdata_exit)) break;
 
+#ifndef NETDATA_ANDROID
         if(!vdo_ipc) {
             debug(D_PROCNETDEV_LOOP, "PROCNETDEV: calling do_ipc().");
             now = time_usec();
@@ -99,7 +104,7 @@ void *proc_main(void *ptr)
             sutime_ipc = now;
         }
         if(unlikely(netdata_exit)) break;
-
+#endif
         if(!vdo_proc_interrupts) {
             debug(D_PROCNETDEV_LOOP, "PROCNETDEV: calling do_proc_interrupts().");
             now = time_usec();

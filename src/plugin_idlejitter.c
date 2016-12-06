@@ -8,11 +8,13 @@ void *cpuidlejitter_main(void *ptr)
 
     info("CPU Idle Jitter thread created with task id %d", gettid());
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     int sleep_ms = (int) config_get_number("plugin:idlejitter", "loop time in ms", CPU_IDLEJITTER_SLEEP_TIME_MS);
     if(sleep_ms <= 0) {

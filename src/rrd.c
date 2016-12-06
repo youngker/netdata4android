@@ -1077,8 +1077,10 @@ unsigned long long rrdset_done(RRDSET *st)
         next_store_ut,          // the timestamp in microseconds, of the next entry to store in the db
         update_every_ut = st->update_every * 1000000ULL; // st->update_every in microseconds
 
+#ifndef NETDATA_ANDROID
     if(unlikely(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &pthreadoldcancelstate) != 0))
         error("Cannot set pthread cancel state to DISABLE.");
+#endif
 
     // a read lock is OK here
     pthread_rwlock_rdlock(&st->rwlock);
@@ -1623,8 +1625,10 @@ unsigned long long rrdset_done(RRDSET *st)
 
     pthread_rwlock_unlock(&st->rwlock);
 
+#ifndef NETDATA_ANDROID
     if(unlikely(pthread_setcancelstate(pthreadoldcancelstate, NULL) != 0))
         error("Cannot set pthread cancel state to RESTORE (%d).", pthreadoldcancelstate);
+#endif
 
     return(st->usec_since_last_update);
 }

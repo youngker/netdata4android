@@ -262,12 +262,14 @@ void *backends_main(void *ptr) {
 
     info("BACKEND thread created with task id %d", gettid());
 
+#ifndef NETDATA_ANDROID	
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
-
+#endif
+	
     // ------------------------------------------------------------------------
     // collect configuration options
 
@@ -423,8 +425,10 @@ void *backends_main(void *ptr) {
         RRDSET *st;
         int pthreadoldcancelstate;
 
+#ifndef NETDATA_ANDROID
         if(unlikely(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &pthreadoldcancelstate) != 0))
             error("Cannot set pthread cancel state to DISABLE.");
+#endif
 
         rrdhost_rdlock(&localhost);
         for(st = localhost.rrdset_root; st ;st = st->next) {
@@ -440,9 +444,10 @@ void *backends_main(void *ptr) {
         }
         rrdhost_unlock(&localhost);
 
+#ifndef NETDATA_ANDROID
         if(unlikely(pthread_setcancelstate(pthreadoldcancelstate, NULL) != 0))
             error("Cannot set pthread cancel state to RESTORE (%d).", pthreadoldcancelstate);
-
+#endif
         chart_buffered_bytes = (collected_number)buffer_strlen(b);
 
         // reset the monitoring chart counters

@@ -749,11 +749,13 @@ void *tc_main(void *ptr) {
 
     info("TC thread created with task id %d", gettid());
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     struct rusage thread;
     RRDSET *stcpu = NULL, *sttime = NULL;
@@ -855,14 +857,18 @@ void *tc_main(void *ptr) {
                 // debug(D_TC_LOOP, "END line");
 
                 if(likely(device)) {
+#ifndef NETDATA_ANDROID
                     if(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL) != 0)
                         error("Cannot set pthread cancel state to DISABLE.");
+#endif
 
                     tc_device_commit(device);
                     // tc_device_free(device);
 
+#ifndef NETDATA_ANDROID
                     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
                         error("Cannot set pthread cancel state to ENABLE.");
+#endif
                 }
 
                 device = NULL;

@@ -398,11 +398,13 @@ void *socket_listen_main_multi_threaded(void *ptr) {
     struct web_client *w;
     int retval, counter = 0;
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     if(!listen_fds_count)
         fatal("LISTENER: No sockets to listen to.");
@@ -527,11 +529,13 @@ void *socket_listen_main_single_threaded(void *ptr) {
     struct web_client *w;
     int retval;
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     if(!listen_fds_count)
         fatal("LISTENER: no listen sockets available.");

@@ -2643,11 +2643,13 @@ ssize_t web_client_receive(struct web_client *w)
 
 void *web_client_main(void *ptr)
 {
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     struct web_client *w = ptr;
     struct pollfd fds[2], *ifd, *ofd;

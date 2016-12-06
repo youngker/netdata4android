@@ -6,11 +6,13 @@ void *checks_main(void *ptr)
 
     info("CHECKS thread created with task id %d", gettid());
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     unsigned long long usec = 0, susec = rrd_update_every * 1000000ULL, loop_usec = 0, total_susec = 0;
     struct timeval now, last, loop;

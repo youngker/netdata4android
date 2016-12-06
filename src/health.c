@@ -2808,11 +2808,13 @@ void *health_main(void *ptr) {
 
     info("HEALTH thread created with task id %d", gettid());
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     int min_run_every = (int)config_get_number("health", "run at least every seconds", 10);
     if(min_run_every < 1) min_run_every = 1;
@@ -2829,8 +2831,10 @@ void *health_main(void *ptr) {
         time_t next_run = now + min_run_every;
         RRDCALC *rc;
 
+#ifndef NETDATA_ANDROID
         if(unlikely(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate) != 0))
             error("Cannot set pthread cancel state to DISABLE.");
+#endif
 
         rrdhost_rdlock(&localhost);
 
@@ -3084,8 +3088,10 @@ void *health_main(void *ptr) {
             rrdhost_unlock(&localhost);
         }
 
+#ifndef NETDATA_ANDROID
         if (unlikely(pthread_setcancelstate(oldstate, NULL) != 0))
             error("Cannot set pthread cancel state to RESTORE (%d).", oldstate);
+#endif
 
         if(unlikely(netdata_exit))
             break;

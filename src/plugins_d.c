@@ -437,11 +437,13 @@ void *pluginsd_main(void *ptr) {
 
     info("PLUGINS.D thread created with task id %d", gettid());
 
+#ifndef NETDATA_ANDROID
     if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
         error("Cannot set pthread cancel type to DEFERRED.");
 
     if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
         error("Cannot set pthread cancel state to ENABLE.");
+#endif
 
     char *dir_name = config_get("plugins", "plugins directory", PLUGINS_DIR);
     int automatic_run = config_get_boolean("plugins", "enable running new plugins", 1);

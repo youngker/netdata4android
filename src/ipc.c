@@ -1,9 +1,14 @@
 #include "common.h"
 
+#ifdef NETDATA_ANDROID
+#include <sys/sem.h>
+#include <sys/msg.h>
+#include <linux/shm.h>
+#else
 #include <sys/sem.h>
 #include <sys/msg.h>
 #include <sys/shm.h>
-
+#endif
 
 #ifndef SEMVMX
 #define SEMVMX  32767  /* <= 32767 semaphore maximum value */
@@ -100,7 +105,7 @@ ipc:
     // query IPC
     {
         struct seminfo seminfo = {.semmni = 0};
-        union semun arg = {.array = (ushort *) &seminfo};
+        union semun arg = {.array = (unsigned short *) &seminfo};
 
         if(unlikely(semctl(0, 0, IPC_INFO, arg) < 0)) {
             error("IPC: Failed to read '%s' and request IPC_INFO with semctl().", filename);
@@ -141,7 +146,7 @@ static inline int ipc_sem_get_status(struct ipc_status *st) {
     struct seminfo seminfo;
     union semun arg;
 
-    arg.array = (ushort *)  (void *) &seminfo;
+    arg.array = (unsigned short *)  (void *) &seminfo;
 
     if(unlikely(semctl (0, 0, SEM_INFO, arg) < 0)) {
         /* kernel not configured for semaphores */
@@ -236,3 +241,4 @@ int do_ipc(int update_every, unsigned long long dt) {
 
     return 0;
 }
+
