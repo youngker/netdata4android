@@ -532,11 +532,11 @@ int main(int argc, char **argv)
         // --------------------------------------------------------------------
 
         rrd_update_every = (int) config_get_number("global", "update every", UPDATE_EVERY);
-        if(rrd_update_every < 1 || rrd_update_every > 600) {
-            error("Invalid data collection frequency (update every) %d given. Defaulting to %d.", rrd_update_every, UPDATE_EVERY_MAX);
-            rrd_update_every = UPDATE_EVERY;
-        }
-        else debug(D_OPTIONS, "update timer set to %d.", rrd_update_every);
+        /* if(rrd_update_every < 1 || rrd_update_every > 600) { */
+        /*     error("Invalid data collection frequency (update every) %d given. Defaulting to %d.", rrd_update_every, UPDATE_EVERY_MAX); */
+        /*     rrd_update_every = UPDATE_EVERY; */
+        /* } */
+        /* else debug(D_OPTIONS, "update timer set to %d.", rrd_update_every); */
 
         // let the plugins know the min update_every
         {

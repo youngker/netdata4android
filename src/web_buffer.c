@@ -226,11 +226,11 @@ void buffer_rrd_value(BUFFER *wb, calculated_number value)
 }
 
 // generate a javascript date, the fastest possible way...
-void buffer_jsdate(BUFFER *wb, int year, int month, int day, int hours, int minutes, int seconds)
+void buffer_jsdate(BUFFER *wb, int year, int month, int day, int hours, int minutes, int seconds, int millisecs)
 {
   //         10        20        30      = 35
     // 01234567890123456789012345678901234
-    // Date(2014,04,01,03,28,20)
+    // Date(2014,04,01,03,28,20,999)
 
     buffer_need_bytes(wb, 30);
 
@@ -264,6 +264,10 @@ void buffer_jsdate(BUFFER *wb, int year, int month, int day, int hours, int minu
   *p++ = ',';
   *p   = '0' + seconds / 10; if (*p != '0') p++;
   *p++ = '0' + seconds % 10;
+  *p++ =',';
+  *p++ = '0' + millisecs / 100; millisecs %= 100;
+  *p++ = '0' + millisecs / 10;
+  *p++ = '0' + millisecs % 10;
 
   unsigned short *r = (unsigned short *)p;
 

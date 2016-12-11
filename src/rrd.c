@@ -461,8 +461,8 @@ static inline long align_entries_to_pagesize(long entries) {
 }
 
 static inline void timeval_align(struct timeval *tv, int update_every) {
-    tv->tv_sec -= tv->tv_sec % update_every;
-    tv->tv_usec = 500000;
+    /* tv->tv_sec -= tv->tv_sec % update_every; */
+    /* tv->tv_usec = 500000; */
 }
 
 RRDSET *rrdset_create(const char *type, const char *id, const char *name, const char *family, const char *context, const char *title, const char *units, long priority, int update_every, int chart_type)
@@ -685,7 +685,7 @@ RRDDIM *rrddim_add(RRDSET *st, const char *id, const char *name, long multiplier
             error("File %s does not have the same refresh frequency. Clearing it.", fullfilename);
             memset(rd, 0, size);
         }
-        else if(usec_dt(&now, &rd->last_collected_time) > (rd->entries * rd->update_every * 1000000ULL)) {
+        else if(usec_dt(&now, &rd->last_collected_time) > (unsigned long long)(rd->entries * rd->update_every)) {
             errno = 0;
             error("File %s is too old. Clearing it.", fullfilename);
             memset(rd, 0, size);
@@ -1002,7 +1002,7 @@ void rrdset_next_usec_unfiltered(RRDSET *st, unsigned long long microseconds)
 {
     if(unlikely(!st->last_collected_time.tv_sec || !microseconds)) {
         // the first entry
-        microseconds = st->update_every * 1000000ULL;
+        microseconds = st->update_every;
     }
     st->usec_since_last_update = microseconds;
 }
@@ -1014,7 +1014,7 @@ void rrdset_next_usec(RRDSET *st, unsigned long long microseconds)
 
     if(unlikely(!st->last_collected_time.tv_sec)) {
         // the first entry
-        microseconds = st->update_every * 1000000ULL;
+        microseconds = st->update_every;
     }
     else if(unlikely(!microseconds)) {
         // no dt given by the plugin
@@ -1075,7 +1075,7 @@ unsigned long long rrdset_done(RRDSET *st)
         now_collect_ut,         // the timestamp in microseconds, of this collected value (this is NOW)
         last_stored_ut,         // the timestamp in microseconds, of the last stored entry in the db
         next_store_ut,          // the timestamp in microseconds, of the next entry to store in the db
-        update_every_ut = st->update_every * 1000000ULL; // st->update_every in microseconds
+        update_every_ut = st->update_every; // st->update_every in microseconds
 
 #ifndef NETDATA_ANDROID
     if(unlikely(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &pthreadoldcancelstate) != 0))
@@ -1165,7 +1165,10 @@ unsigned long long rrdset_done(RRDSET *st)
     // next_store_ut  = the time of the next interpolation point
     last_stored_ut = st->last_updated.tv_sec * 1000000ULL + st->last_updated.tv_usec;
     now_collect_ut = st->last_collected_time.tv_sec * 1000000ULL + st->last_collected_time.tv_usec;
-    next_store_ut  = (st->last_updated.tv_sec + st->update_every) * 1000000ULL;
+    next_store_ut = (st->update_every >= 1000000) ? (last_stored_ut / 1000000) * 1000000 + st->update_every :
+                    (st->update_every >= 100000) ? (last_stored_ut / 100000) * 100000 + st->update_every :
+                    (st->update_every >= 10000) ? (last_stored_ut / 10000) * 10000 + st->update_every :
+                    (last_stored_ut / 1000) * 1000 + st->update_every;
 
     if(unlikely(st->debug)) {
         debug(D_RRD_STATS, "%s: last_collect_ut = %0.3Lf (last collection time)", st->name, (long double)last_collect_ut/1000000.0);
@@ -1383,7 +1386,7 @@ unsigned long long rrdset_done(RRDSET *st)
         }
 
         st->last_updated.tv_sec = (time_t) (next_store_ut / 1000000ULL);
-        st->last_updated.tv_usec = 0;
+        st->last_updated.tv_usec = (useconds_t) (next_store_ut % 1000000ULL);;
 
         for( rd = st->dimensions ; likely(rd) ; rd = rd->next ) {
             calculated_number new_value;
@@ -1412,7 +1415,7 @@ unsigned long long rrdset_done(RRDSET *st)
                     rd->calculated_value -= new_value;
                     new_value += rd->last_calculated_value;
                     rd->last_calculated_value = 0;
-                    new_value /= (calculated_number)st->update_every;
+                    new_value /= ((calculated_number)st->update_every / (calculated_number) 1000000ULL);
 
                     if(unlikely(next_store_ut - last_stored_ut < update_every_ut)) {
                         if(unlikely(st->debug))
@@ -1420,7 +1423,7 @@ unsigned long long rrdset_done(RRDSET *st)
                                 st->id, rd->name
                                 , (calculated_number)(next_store_ut - last_stored_ut)
                                 );
-                        new_value = new_value * (calculated_number)(st->update_every * 1000000) / (calculated_number)(next_store_ut - last_stored_ut);
+                        new_value = new_value * (calculated_number)st->update_every / (calculated_number)(next_store_ut - last_stored_ut);
                     }
                     break;
 

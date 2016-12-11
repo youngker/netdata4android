@@ -9,8 +9,8 @@ typedef struct web_buffer {
     char *buffer;   		// the buffer itself
     uint8_t contenttype;	// the content type of the data in the buffer
     uint8_t options;		// options related to the content
-    time_t date;    		// the timestamp this content has been generated
-    time_t expires;			// the timestamp this content expires
+    long long date;    		// the timestamp this content has been generated
+    long long expires;			// the timestamp this content expires
 } BUFFER;
 
 // options
@@ -55,7 +55,7 @@ extern void buffer_strcat(BUFFER *wb, const char *txt);
 extern void buffer_rrd_value(BUFFER *wb, calculated_number value);
 
 extern void buffer_date(BUFFER *wb, int year, int month, int day, int hours, int minutes, int seconds);
-extern void buffer_jsdate(BUFFER *wb, int year, int month, int day, int hours, int minutes, int seconds);
+extern void buffer_jsdate(BUFFER *wb, int year, int month, int day, int hours, int minutes, int seconds, int millisecs);
 
 extern BUFFER *buffer_create(size_t size);
 extern void buffer_free(BUFFER *b);

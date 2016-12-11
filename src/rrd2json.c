@@ -18,8 +18,8 @@ void rrd_stats_api_v1_chart_with_data(RRDSET *st, BUFFER *wb, size_t *dimensions
         "\t\t\t\"data_url\": \"/api/v1/data?chart=%s\",\n"
         "\t\t\t\"chart_type\": \"%s\",\n"
         "\t\t\t\"duration\": %ld,\n"
-        "\t\t\t\"first_entry\": %ld,\n"
-        "\t\t\t\"last_entry\": %ld,\n"
+        "\t\t\t\"first_entry\": %lld,\n"
+        "\t\t\t\"last_entry\": %lld,\n"
         "\t\t\t\"update_every\": %d,\n"
         "\t\t\t\"dimensions\": {\n"
         , st->id
@@ -127,7 +127,9 @@ void rrd_stats_api_v1_charts(BUFFER *wb)
 
 unsigned long rrd_stats_one_json(RRDSET *st, char *options, BUFFER *wb)
 {
-    time_t now = time(NULL);
+    struct timeval tmp_now;
+    gettimeofday(&tmp_now, NULL);
+    long long now = tmp_now.tv_sec * 1000000ULL + tmp_now.tv_usec;
 
     pthread_rwlock_rdlock(&st->rwlock);
 
@@ -146,10 +148,10 @@ unsigned long rrd_stats_one_json(RRDSET *st, char *options, BUFFER *wb)
         "\t\t\t\"chart_type\": \"%s\",\n"
         "\t\t\t\"counter\": %lu,\n"
         "\t\t\t\"entries\": %ld,\n"
-        "\t\t\t\"first_entry_t\": %ld,\n"
+        "\t\t\t\"first_entry_t\": %lld,\n"
         "\t\t\t\"last_entry\": %lu,\n"
-        "\t\t\t\"last_entry_t\": %ld,\n"
-        "\t\t\t\"last_entry_secs_ago\": %ld,\n"
+        "\t\t\t\"last_entry_t\": %lld,\n"
+        "\t\t\t\"last_entry_secs_ago\": %lld,\n"
         "\t\t\t\"update_every\": %d,\n"
         "\t\t\t\"isdetail\": %d,\n"
         "\t\t\t\"usec_since_last_update\": %llu,\n"
@@ -172,7 +174,7 @@ unsigned long rrd_stats_one_json(RRDSET *st, char *options, BUFFER *wb)
         , rrdset_first_entry_t(st)
         , rrdset_last_slot(st)
         , rrdset_last_entry_t(st)
-        , (now < rrdset_last_entry_t(st)) ? (time_t)0 : now - rrdset_last_entry_t(st)
+        , (now < rrdset_last_entry_t(st)) ? (long long)0 : now - rrdset_last_entry_t(st)
         , st->update_every
         , st->isdetail
         , st->usec_since_last_update
@@ -297,7 +299,7 @@ typedef struct rrdresult {
 
     uint8_t *od;            // the options for the dimensions
 
-    time_t *t;              // array of n timestamps
+    long long *t;           // array of n timestamps
     calculated_number *v;   // array n x d values
     uint8_t *o;             // array n x d options
 
@@ -309,8 +311,8 @@ typedef struct rrdresult {
     calculated_number min;
     calculated_number max;
 
-    time_t before;
-    time_t after;
+    long long before;
+    long long after;
 
     int has_st_lock;        // if st is read locked by us
 } RRDR;
@@ -510,20 +512,20 @@ void rrdr_json_wrapper_begin(RRDR *r, BUFFER *wb, uint32_t format, uint32_t opti
             "   %sname%s: %s%s%s,\n"
             "   %sview_update_every%s: %d,\n"
             "   %supdate_every%s: %d,\n"
-            "   %sfirst_entry%s: %u,\n"
-            "   %slast_entry%s: %u,\n"
-            "   %sbefore%s: %u,\n"
-            "   %safter%s: %u,\n"
+            "   %sfirst_entry%s: %llu,\n"
+            "   %slast_entry%s: %llu,\n"
+            "   %sbefore%s: %llu,\n"
+            "   %safter%s: %llu,\n"
             "   %sdimension_names%s: ["
             , kq, kq
             , kq, kq, sq, r->st->id, sq
             , kq, kq, sq, r->st->name, sq
             , kq, kq, r->update_every
             , kq, kq, r->st->update_every
-            , kq, kq, (uint32_t)rrdset_first_entry_t(r->st)
-            , kq, kq, (uint32_t)rrdset_last_entry_t(r->st)
-            , kq, kq, (uint32_t)r->before
-            , kq, kq, (uint32_t)r->after
+            , kq, kq, rrdset_first_entry_t(r->st)
+            , kq, kq, rrdset_last_entry_t(r->st)
+            , kq, kq, r->before
+            , kq, kq, r->after
             , kq, kq);
 
     for(c = 0, i = 0, rd = r->st->dimensions; rd && c < r->d ;c++, rd = rd->next) {
@@ -791,7 +793,8 @@ static void rrdr2json(RRDR *r, BUFFER *wb, uint32_t options, int datatable)
         calculated_number *cn = &r->v[ i * r->d ];
         uint8_t *co = &r->o[ i * r->d ];
 
-        time_t now = r->t[i];
+        time_t now = (time_t)(r->t[i]/1000000ULL);
+        int millisecs = ((useconds_t)(r->t[i]%1000000ULL)/1000ULL);
 
         if(dates == JSON_DATES_JS) {
             // generate the local date time
@@ -807,7 +810,7 @@ static void rrdr2json(RRDR *r, BUFFER *wb, uint32_t options, int datatable)
             if(dates_with_new)
                 buffer_strcat(wb, "new ");
 
-            buffer_jsdate(wb, tm->tm_year + 1900, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+            buffer_jsdate(wb, tm->tm_year + 1900, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, millisecs);
 
             buffer_strcat(wb, post_date);
 
@@ -833,9 +836,9 @@ static void rrdr2json(RRDR *r, BUFFER *wb, uint32_t options, int datatable)
             if( options & RRDR_OPTION_OBJECTSROWS )
                 buffer_sprintf(wb, "%stime%s: ", kq, kq);
 
-            buffer_rrd_value(wb, (calculated_number)r->t[i]);
+            buffer_rrd_value(wb, (calculated_number)(r->t[i]/1000ULL));
             // in ms
-            if(options & RRDR_OPTION_MILLISECONDS) buffer_strcat(wb, "000");
+            // if(options & RRDR_OPTION_MILLISECONDS) buffer_strcat(wb, "000");
 
             buffer_strcat(wb, post_date);
         }
@@ -1128,7 +1131,7 @@ inline static uint8_t *rrdr_line_options(RRDR *r)
     return &r->o[ r->c * r->d ];
 }
 
-inline static int rrdr_line_init(RRDR *r, time_t t)
+inline static int rrdr_line_init(RRDR *r, long long t)
 {
     r->c++;
 
@@ -1203,7 +1206,7 @@ static RRDR *rrdr_create(RRDSET *st, long n)
 
     r->n = n;
 
-    r->t = mallocz(n * sizeof(time_t));
+    r->t = mallocz(n * sizeof(long long));
     r->v = mallocz(n * r->d * sizeof(calculated_number));
     r->o = mallocz(n * r->d * sizeof(uint8_t));
     r->od = mallocz(r->d * sizeof(uint8_t));
@@ -1227,8 +1230,8 @@ RRDR *rrd2rrdr(RRDSET *st, long points, long long after, long long before, int g
     int debug = st->debug;
     int absolute_period_requested = -1;
 
-    time_t first_entry_t = rrdset_first_entry_t(st);
-    time_t last_entry_t  = rrdset_last_entry_t(st);
+    long long first_entry_t = rrdset_first_entry_t(st);
+    long long last_entry_t  = rrdset_last_entry_t(st);
 
     if(before == 0 && after == 0) {
         // dump the all the data
@@ -1273,13 +1276,13 @@ RRDR *rrd2rrdr(RRDSET *st, long points, long long after, long long before, int g
 
     // check if they are upside down
     if(after > before) {
-        time_t tmp = before;
+        long long tmp = before;
         before = after;
         after = tmp;
     }
 
     // the duration of the chart
-    time_t duration = before - after;
+    long long duration = before - after;
     long available_points = duration / st->update_every;
 
     if(duration <= 0 || available_points <= 0)
@@ -1297,8 +1300,8 @@ RRDR *rrd2rrdr(RRDSET *st, long points, long long after, long long before, int g
     // round group to the closest integer
     if(available_points % points > points / 2) group++;
 
-    time_t after_new  = (aligned) ? (after  - (after  % (group * st->update_every))) : after;
-    time_t before_new = (aligned) ? (before - (before % (group * st->update_every))) : before;
+    long long after_new  = (aligned) ? (after  - (after  % (group * st->update_every))) : after;
+    long long before_new = (aligned) ? (before - (before % (group * st->update_every))) : before;
     long points_new   = (before_new - after_new) / st->update_every / group;
 
     // find the starting and ending slots in our round robin db
@@ -1412,9 +1415,9 @@ RRDR *rrd2rrdr(RRDSET *st, long points, long long after, long long before, int g
     // -------------------------------------------------------------------------
     // the main loop
 
-    time_t  now = rrdset_slot2time(st, start_at_slot),
-            dt = st->update_every,
-            group_start_t = 0;
+    long long now = rrdset_slot2time(st, start_at_slot),
+               dt = st->update_every,
+    group_start_t = 0;
 
     if(unlikely(debug)) debug(D_RRD_STATS, "BEGIN %s after_t: %u (stop_at_t: %ld), before_t: %u (start_at_t: %ld), start_t(now): %u, current_entry: %ld, entries: %ld"
             , st->id
@@ -1439,7 +1442,7 @@ RRDR *rrd2rrdr(RRDSET *st, long points, long long after, long long before, int g
         if(unlikely(slot < 0)) slot = st->entries - 1;
         if(unlikely(slot == stop_at_slot)) stop_now = counter;
 
-        if(unlikely(debug)) debug(D_RRD_STATS, "ROW %s slot: %ld, entries_counter: %ld, group_count: %ld, added: %ld, now: %ld, %s %s"
+        if(unlikely(debug)) debug(D_RRD_STATS, "ROW %s slot: %ld, entries_counter: %ld, group_count: %ld, added: %ld, now: %lld, %s %s"
                 , st->id
                 , slot
                 , counter
@@ -1580,7 +1583,7 @@ RRDR *rrd2rrdr(RRDSET *st, long points, long long after, long long before, int g
     return r;
 }
 
-int rrd2value(RRDSET *st, BUFFER *wb, calculated_number *n, const char *dimensions, long points, long long after, long long before, int group_method, uint32_t options, time_t *db_after, time_t *db_before, int *value_is_null)
+int rrd2value(RRDSET *st, BUFFER *wb, calculated_number *n, const char *dimensions, long points, long long after, long long before, int group_method, uint32_t options, long long *db_after, long long *db_before, int *value_is_null)
 {
     RRDR *r = rrd2rrdr(st, points, after, before, group_method, !(options & RRDR_OPTION_NOT_ALIGNED));
     if(!r) {
@@ -1618,7 +1621,7 @@ int rrd2value(RRDSET *st, BUFFER *wb, calculated_number *n, const char *dimensio
     return 200;
 }
 
-int rrd2format(RRDSET *st, BUFFER *wb, BUFFER *dimensions, uint32_t format, long points, long long after, long long before, int group_method, uint32_t options, time_t *latest_timestamp)
+int rrd2format(RRDSET *st, BUFFER *wb, BUFFER *dimensions, uint32_t format, long points, long long after, long long before, int group_method, uint32_t options, long long *latest_timestamp)
 {
     RRDR *r = rrd2rrdr(st, points, after, before, group_method, !(options & RRDR_OPTION_NOT_ALIGNED));
     if(!r) {
@@ -1792,7 +1795,7 @@ int rrd2format(RRDSET *st, BUFFER *wb, BUFFER *dimensions, uint32_t format, long
     return 200;
 }
 
-time_t rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group, int group_method, time_t after, time_t before, int only_non_zero)
+long long rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group, int group_method, long long after, long long before, int only_non_zero)
 {
     int c;
     pthread_rwlock_rdlock(&st->rwlock);
@@ -1829,7 +1832,7 @@ time_t rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group,
 
     // our return value (the last timestamp printed)
     // this is required to detect re-transmit in google JSONP
-    time_t last_timestamp = 0;
+    long long last_timestamp = 0;
 
 
     // -------------------------------------------------------------------------
@@ -1860,7 +1863,7 @@ time_t rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group,
     // checks for debugging
 
     if(st->debug) {
-        debug(D_RRD_STATS, "%s first_entry_t = %ld, last_entry_t = %ld, duration = %ld, after = %ld, before = %ld, duration = %ld, entries_to_show = %ld, group = %ld"
+        debug(D_RRD_STATS, "%s first_entry_t = %lld, last_entry_t = %lld, duration = %lld, after = %lld, before = %lld, duration = %lld, entries_to_show = %ld, group = %ld"
             , st->id
             , rrdset_first_entry_t(st)
             , rrdset_last_entry_t(st)
@@ -1873,10 +1876,10 @@ time_t rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group,
             );
 
         if(before < after)
-            debug(D_RRD_STATS, "WARNING: %s The newest value in the database (%ld) is earlier than the oldest (%ld)", st->name, before, after);
+            debug(D_RRD_STATS, "WARNING: %s The newest value in the database (%lld) is earlier than the oldest (%lld)", st->name, before, after);
 
         if((before - after) > st->entries * st->update_every)
-            debug(D_RRD_STATS, "WARNING: %s The time difference between the oldest and the newest entries (%ld) is higher than the capacity of the database (%ld)", st->name, before - after, st->entries * st->update_every);
+            debug(D_RRD_STATS, "WARNING: %s The time difference between the oldest and the newest entries (%lld) is higher than the capacity of the database (%ld)", st->name, before - after, st->entries * st->update_every);
     }
 
 
@@ -1946,8 +1949,8 @@ time_t rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group,
 
         t -= t % group;
 
-        time_t  now = rrdset_slot2time(st, t),
-                dt = st->update_every;
+        long long  now = rrdset_slot2time(st, t),
+                    dt = st->update_every;
 
         long count = 0, printed = 0, group_count = 0;
         last_timestamp = 0;
@@ -1972,7 +1975,7 @@ time_t rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group,
 
             int print_this = 0;
 
-            if(st->debug) debug(D_RRD_STATS, "%s t = %ld, count = %ld, group_count = %ld, printed = %ld, now = %ld, %s %s"
+            if(st->debug) debug(D_RRD_STATS, "%s t = %ld, count = %ld, group_count = %ld, printed = %ld, now = %lld, %s %s"
                     , st->id
                     , t
                     , count + 1
@@ -2002,13 +2005,15 @@ time_t rrd_stats_json(int type, RRDSET *st, BUFFER *wb, long points, long group,
                 }
 
                 // generate the local date time
-                struct tm tmbuf, *tm = localtime_r(&now, &tmbuf);
+                time_t tmp_now = (time_t)(now/1000000ULL);
+                int millisecs =  ((useconds_t)(now%1000000ULL)/1000ULL);
+                struct tm tmbuf, *tm = localtime_r(&tmp_now, &tmbuf);
                 if(!tm) { error("localtime() failed."); continue; }
                 if(now > last_timestamp) last_timestamp = now;
 
                 if(printed) buffer_strcat(wb, "]},\n");
                 buffer_strcat(wb, pre_date);
-                buffer_jsdate(wb, tm->tm_year + 1900, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+                buffer_jsdate(wb, tm->tm_year + 1900, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, millisecs);
                 buffer_strcat(wb, post_date);
 
                 print_this = 1;

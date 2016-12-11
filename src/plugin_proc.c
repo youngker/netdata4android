@@ -65,7 +65,7 @@ void *proc_main(void *ptr)
     unsigned long long sutime_ipc = 0ULL;
     unsigned long long sutime_sys_kernel_mm_ksm = 0ULL;
 
-    unsigned long long step = rrd_update_every * 1000000ULL;
+    unsigned long long step = rrd_update_every;
     for(;;) {
         unsigned long long now = time_usec();
         unsigned long long next = now - (now % step) + step;

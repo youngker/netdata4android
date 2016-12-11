@@ -2110,7 +2110,7 @@
             }
 
             if(typeof this.fixed_min_duration === 'undefined')
-                this.fixed_min_duration = Math.round((this.chartWidth() / 30) * this.chart.update_every * 1000);
+                this.fixed_min_duration = Math.round((this.chartWidth() / 30) * this.chart.update_every / 1000);
 
             var min_duration = this.fixed_min_duration;
             var current_duration = Math.round(this.view_before - this.view_after);
@@ -2812,10 +2812,10 @@
             if(NETDATA.globalPanAndZoom.isActive() && NETDATA.globalPanAndZoom.isMaster(this) === false) {
                 this.tm.pan_and_zoom_seq = NETDATA.globalPanAndZoom.seq;
 
-                after = Math.round(NETDATA.globalPanAndZoom.force_after_ms / 1000);
-                before = Math.round(NETDATA.globalPanAndZoom.force_before_ms / 1000);
-                this.view_after = after * 1000;
-                this.view_before = before * 1000;
+                after = Math.round(NETDATA.globalPanAndZoom.force_after_ms * 1000);
+                before = Math.round(NETDATA.globalPanAndZoom.force_before_ms * 1000);
+                this.view_after = after / 1000;
+                this.view_before = before / 1000;
 
                 this.requested_padding = null;
                 points_multiplier = 1;
@@ -2823,10 +2823,10 @@
             else if(this.current.force_before_ms !== null && this.current.force_after_ms !== null) {
                 this.tm.pan_and_zoom_seq = 0;
 
-                before = Math.round(this.current.force_before_ms / 1000);
-                after  = Math.round(this.current.force_after_ms / 1000);
-                this.view_after = after * 1000;
-                this.view_before = before * 1000;
+                before = Math.round(this.current.force_before_ms * 1000);
+                after  = Math.round(this.current.force_after_ms * 1000);
+                this.view_after = after / 1000;
+                this.view_before = before / 1000;
 
                 if(NETDATA.options.current.pan_and_zoom_data_padding === true) {
                     this.requested_padding = Math.round((before - after) / 2);
@@ -2844,15 +2844,15 @@
 
                 before = this.before;
                 after  = this.after;
-                this.view_after = after * 1000;
-                this.view_before = before * 1000;
+                this.view_after = after / 1000;
+                this.view_before = before / 1000;
 
                 this.requested_padding = null;
                 points_multiplier = 1;
             }
 
-            this.requested_after = after * 1000;
-            this.requested_before = before * 1000;
+            this.requested_after = after / 1000;
+            this.requested_before = before / 1000;
 
             this.data_points = this.points || Math.round(this.chartWidth() / this.chartPixelsPerPoint());
 
@@ -2903,11 +2903,11 @@
             var started = Date.now();
 
             // if the result is JSON, find the latest update-every
-            this.data_update_every = data.view_update_every * 1000;
-            this.data_after = data.after * 1000;
-            this.data_before = data.before * 1000;
-            this.netdata_first = data.first_entry * 1000;
-            this.netdata_last = data.last_entry * 1000;
+            this.data_update_every = data.view_update_every / 1000;
+            this.data_after = data.after / 1000;
+            this.data_before = data.before / 1000;
+            this.netdata_first = data.first_entry / 1000;
+            this.netdata_last = data.last_entry / 1000;
             this.data_points = data.points;
             data.state = this;
 
@@ -3265,7 +3265,7 @@
         this._defaultsFromDownloadedChart = function(chart) {
             this.chart = chart;
             this.chart_url = chart.url;
-            this.data_update_every = chart.update_every * 1000;
+            this.data_update_every = chart.update_every / 1000;
             this.data_points = Math.round(this.chartWidth() / this.chartPixelsPerPoint());
             this.tm.last_info_downloaded = Date.now();
 

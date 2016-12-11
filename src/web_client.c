@@ -399,7 +399,7 @@ int mysendfile(struct web_client *w, char *filename)
     else if(strstr(filename, ".icns") != NULL)  w->response.data->contenttype = CT_IMAGE_ICNS;
     else w->response.data->contenttype = CT_APPLICATION_OCTET_STREAM;
 
-    debug(D_WEB_CLIENT_ACCESS, "%llu: Sending file '%s' (%ld bytes, ifd %d, ofd %d).", w->id, webfilename, stat.st_size, w->ifd, w->ofd);
+    debug(D_WEB_CLIENT_ACCESS, "%llu: Sending file '%s' (%lld bytes, ifd %d, ofd %d).", w->id, webfilename, stat.st_size, w->ifd, w->ofd);
 
     w->mode = WEB_CLIENT_MODE_FILECOPY;
     w->wait_receive = 1;
@@ -974,7 +974,7 @@ int web_client_api_request_v1_badge(struct web_client *w, char *url) {
         ret = 200;
     }
     else {
-        time_t latest_timestamp = 0;
+        long long latest_timestamp = 0;
         int value_is_null = 1;
         calculated_number n = 0;
         ret = 500;
@@ -1041,7 +1041,7 @@ int web_client_api_request_v1_data(struct web_client *w, char *url)
             *responseHandler = NULL,
             *outFileName = NULL;
 
-    time_t last_timestamp_in_data = 0, google_timestamp = 0;
+    long long last_timestamp_in_data = 0, google_timestamp = 0;
 
     char *chart = NULL
             , *before_str = NULL
@@ -1134,9 +1134,8 @@ int web_client_api_request_v1_data(struct web_client *w, char *url)
         ret = 404;
         goto cleanup;
     }
-
-    long long before = (before_str && *before_str)?atol(before_str):0;
-    long long after  = (after_str  && *after_str) ?atol(after_str):0;
+    long long before = (before_str && *before_str)?atoll(before_str):0;
+    long long after  = (after_str  && *after_str) ?atoll(after_str):0;
     int       points = (points_str && *points_str)?atoi(points_str):0;
 
     debug(D_WEB_CLIENT, "%llu: API command 'data' for chart '%s', dimensions '%s', after '%lld', before '%lld', points '%d', group '%d', format '%u', options '0x%08x'"
@@ -1532,7 +1531,7 @@ int web_client_api_old_data_request(struct web_client *w, char *url, int datasou
     // how many entries does the client want?
     int lines = rrd_default_history_entries;
     int group_count = 1;
-    time_t after = 0, before = 0;
+    long long after = 0, before = 0;
     int group_method = GROUP_AVERAGE;
     int nonzero = 0;
 
@@ -1586,7 +1585,7 @@ int web_client_api_old_data_request(struct web_client *w, char *url, int datasou
     char *google_out = "json";
     char *google_responseHandler = "google.visualization.Query.setResponse";
     char *google_outFileName = NULL;
-    time_t last_timestamp_in_data = 0;
+    long long last_timestamp_in_data = 0;
     if(datasource_type == DATASOURCE_DATATABLE_JSON || datasource_type == DATASOURCE_DATATABLE_JSONP) {
 
         w->response.data->contenttype = CT_APPLICATION_X_JAVASCRIPT;
@@ -1644,10 +1643,10 @@ int web_client_api_old_data_request(struct web_client *w, char *url, int datasou
             google_responseHandler, google_version, google_reqId, st->last_updated.tv_sec);
     }
 
-    debug(D_WEB_CLIENT_ACCESS, "%llu: Sending RRD data '%s' (id %s, %d lines, %d group, %d group_method, %ld after, %ld before).",
+    debug(D_WEB_CLIENT_ACCESS, "%llu: Sending RRD data '%s' (id %s, %d lines, %d group, %d group_method, %lld after, %lld before).",
         w->id, st->name, st->id, lines, group_count, group_method, after, before);
 
-    time_t timestamp_in_data = rrd_stats_json(datasource_type, st, w->response.data, lines, group_count, group_method, (unsigned long)after, (unsigned long)before, nonzero);
+    long long timestamp_in_data = rrd_stats_json(datasource_type, st, w->response.data, lines, group_count, group_method, (long long)after, (long long)before, nonzero);
 
     if(datasource_type == DATASOURCE_DATATABLE_JSONP) {
         if(timestamp_in_data > last_timestamp_in_data)
@@ -2176,11 +2175,15 @@ void web_client_process(struct web_client *w) {
     char date[32], edate[32];
     {
         struct tm tmbuf, *tm;
+        long long t = w->response.data->date;
+        long long e = w->response.data->expires;
+        time_t tmp_t = (time_t)(t / 1000000ULL);
+        time_t tmp_e = (time_t)(e / 1000000ULL);
 
-        tm = gmtime_r(&w->response.data->date, &tmbuf);
+        tm = gmtime_r(&tmp_t, &tmbuf);
         strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %Z", tm);
 
-        tm = gmtime_r(&w->response.data->expires, &tmbuf);
+        tm = gmtime_r(&tmp_e, &tmbuf);
         strftime(edate, sizeof(edate), "%a, %d %b %Y %H:%M:%S %Z", tm);
     }
 
